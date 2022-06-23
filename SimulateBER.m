@@ -10,32 +10,37 @@ output_stream = zeros(1,lfsr_output_size);
 EbNo_dB = 0:0.01:30; % Initialize Eb/No in dB
 ber = zeros(1, length(EbNo_dB));
 
+num_runs = 100; % Number of times the ber for each eb/no is calculated
+
 %For each value of Eb/No, create a noise vector the size of the input
 %sequence and add to it. Then, go through the contaminated sequence and
 %apply the optimum decision threshold. Compare each value after deicison
 %with the original input, and increment the error counter if they don't
 %match
 for j = 1:length(EbNo_dB)
-    noise = sqrt(0.5/(10^(EbNo_dB(j)/10)))*randn(1,lfsr_output_size); %scale noise with unit variance by calculated variance
-    contaminated_stream = input_stream+noise;
-
-    for i=1:1:length(contaminated_stream)
-        % Apply optimum decision threshold
-        if(contaminated_stream(i) > 0)
-            output_stream(i) = 1;
-        elseif(contaminated_stream(i) <= 0)
-            output_stream(i) = -1;
+    for k = 1:num_runs
+        noise = sqrt(0.5/(10^(EbNo_dB(j)/10)))*randn(1,lfsr_output_size); %scale noise with unit variance by calculated variance
+        contaminated_stream = input_stream+noise;
+    
+        for i=1:1:length(contaminated_stream)
+            % Apply optimum decision threshold
+            if(contaminated_stream(i) > 0)
+                output_stream(i) = 1;
+            elseif(contaminated_stream(i) <= 0)
+                output_stream(i) = -1;
+            end
+            %Check output bit against input, and increment error counter if
+            %they are different
+            if(output_stream(i) ~= input_stream(i))
+                error_counter = error_counter + 1;
+            end
         end
-        %Check output bit against input, and increment error counter if
-        %they are different
-        if(output_stream(i) ~= input_stream(i))
-            error_counter = error_counter + 1;
-        end
+        ber(j) = ber(j) + error_counter/lfsr_output_size; % Percentage of time bits are in error
+        error_counter = 0;
     end
-    ber(j) = error_counter/lfsr_output_size; % Percentage of time bits are in error
-    error_counter = 0;
 end
 
+ber = ber/num_runs; %take the average over all runs
 semilogy(EbNo_dB, ber);
 xlabel("Eb/No (dB)");
 ylabel("BER (dB)");
